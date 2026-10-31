@@ -461,9 +461,14 @@ jobs:
           }
 
           $source = "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          & nuget.exe sources Add -Name GitHubPackages -Source $source -Username $env:GITHUB_ACTOR -Password $env:GITHUB_TOKEN -NonInteractive
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Failed to configure GitHub Packages authentication.'
+          }
+
           foreach ($package in $packages) {
             Write-Host "Publishing $($package.Name)"
-            & nuget.exe push $package.FullName -Source $source -ApiKey $env:GITHUB_TOKEN -SkipDuplicate -NonInteractive
+            & nuget.exe push $package.FullName -Source GitHubPackages -ApiKey $env:GITHUB_TOKEN -SkipDuplicate -NonInteractive
             if ($LASTEXITCODE -ne 0) {
               throw "NuGet push failed for $($package.Name) (exit code $LASTEXITCODE)"
             }
