@@ -421,6 +421,28 @@ jobs:
       - name: Setup version
         run: scripts\gh-version-setup.cmd ${{env.VERSION}}
 
+      - name: Set package repository metadata
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repositoryUrl = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY"
+          foreach ($file in Get-ChildItem nuspec -Filter '*.nuspec' -File) {
+            $document = [System.Xml.XmlDocument]::new()
+            $document.PreserveWhitespace = $true
+            $document.Load($file.FullName)
+            $metadata = $document.SelectSingleNode('/*[local-name()="package"]/*[local-name()="metadata"]')
+            $repository = $metadata.SelectSingleNode('*[local-name()="repository"]')
+            if ($null -eq $repository) {
+              $repository = $document.CreateElement('repository', $metadata.NamespaceURI)
+              [void]$metadata.AppendChild($repository)
+            }
+            $repository.SetAttribute('type', 'git')
+            $repository.SetAttribute('url', $repositoryUrl)
+            $repository.SetAttribute('branch', $env:GITHUB_REF_NAME)
+            $repository.SetAttribute('commit', $env:GITHUB_SHA)
+            $document.Save($file.FullName)
+            Write-Host "Set repository for $($file.Name) to $repositoryUrl"
+          }
       - name: Create nupkg files
         run: scripts\gh-build-nuget.cmd
 
